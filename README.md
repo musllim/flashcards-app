@@ -8,5 +8,4 @@
 yarn migrate:dev
 yarn watch
 yarn dev
-
 ```

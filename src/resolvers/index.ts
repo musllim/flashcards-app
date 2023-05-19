@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 const prisma = new PrismaClient();
 
 export const resolvers = {
@@ -27,6 +29,19 @@ export const resolvers = {
         where: {
           id,
         },
+        include: {
+          category: {
+            select: {
+              name: true
+            }
+          },
+          user: {
+            select: {
+              email: true,
+              id: true
+            }
+          }
+        }
       });
       return card;
     },
@@ -34,24 +49,55 @@ export const resolvers = {
   Mutation: {
     postCard: async (
       _: any,
-      { image, title }: { title: string; image: string }
+      {
+        image,
+        title,
+        cardCategory,
+      }: { title: string; image: string; cardCategory: string },
+      context: { token: string }
     ) => {
+      const bearerToken = context.token
+
+
+      if (!bearerToken?.startsWith('Bearer')) return
+      const token = bearerToken.split(" ")[1]
+
+      let user: {
+        email: string
+      }
+
+      const data = await jwt.verify(token, 'secret')
+      if (!data) return
+      user = data as typeof user
+
       const createdCard = await prisma.card.create({
         data: {
           image,
           title,
           category: {
             create: {
-              name: "biology",
+              name: cardCategory,
             },
           },
           user: {
-            create: {
-              email: "uwi@gmail.com",
-              password: "123",
-            },
-          },
+            connect: {
+              email: user.email
+            }
+          }
         },
+        include: {
+          category: {
+            select: {
+              name: true
+            }
+          },
+          user: {
+            select: {
+              email: true,
+              id: true
+            }
+          }
+        }
       });
 
       return createdCard;
@@ -60,14 +106,37 @@ export const resolvers = {
       _: any,
       { email, password }: { password: string; email: string }
     ) => {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(password, salt);
+
       const createdCard = await prisma.user.create({
         data: {
           email,
-          password,
+          password: hash,
         },
       });
 
       return createdCard;
+    },
+    loginUser: async (
+      _: any,
+      { email, password }: { password: string; email: string }
+    ) => {
+      const user = await prisma.user.findFirst({
+        where: {
+          email,
+        },
+      });
+      if (!user) return;
+
+      const result = await bcrypt.compare(password, user.password);
+      if (!result) return;
+
+      const token = jwt.sign({ ...user, password: "" }, "secret");
+
+      return {
+        token,
+      };
     },
   },
 };
