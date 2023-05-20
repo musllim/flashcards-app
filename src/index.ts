@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 
@@ -17,7 +18,8 @@ const main = async () => {
     resolvers,
   });
 
-  const { url } = await startStandaloneServer(server, {
+  const { url } = await startStandaloneServer<{ token: string }>(server, {
+    context: async ({ req }) => ({ token: req.headers.authorization as string }),
     listen: { port: PORT },
   });
 

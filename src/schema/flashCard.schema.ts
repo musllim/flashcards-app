@@ -29,9 +29,14 @@ type Query {
   getCards: [Card!]
 }
 
+type LoginRes {
+  token: String
+}
+
 type Mutation {
-  postCard(title: String!, image: String!): Card!
+  postCard(title: String!, image: String!, cardCategory: String!): Card!
   createUser(email: String!, password: String!): User!
+  loginUser(email: String!, password: String!): LoginRes!
 }
 
 `;
